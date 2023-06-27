@@ -1,10 +1,15 @@
 package mr
 
-import "fmt"
-import "log"
-import "net/rpc"
-import "hash/fnv"
-
+import (
+	"fmt"
+	"hash/fnv"
+	"log"
+	"math/rand"
+	"net/rpc"
+	"os"
+	"strconv"
+	"time"
+)
 
 //
 // Map functions return a slice of KeyValue.
@@ -32,10 +37,33 @@ func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
+	rand.Seed(time.Now().UnixNano())
+	workerID := strconv.Itoa(rand.Intn(1000001))
 
-	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
+	for {
+		res := CallGetTask(workerID)
+		if res.containsTask {
+			performTask(res.taskID, res.taskTarget)
+		}
+		time.Sleep(time.Second)
+	}
 
+	//poll the coordiantor for a new task every second
+}
+
+func performTask(taskID string, taskTarget string) {
+	if taskID == "MAP" {
+		//TODO
+		//taskTarget is filename
+		//read contents of filename into a string
+		//and call mapf
+	} else if taskID == "REDUCE" {
+		//TODO
+		//taskTarget is the reduce task number
+		//read in all intermediate data into a slice
+		//sort it all by the key (as seen in mrsequential.go)
+		//call reduce on each key / list of values for that key :)
+	}
 }
 
 //
@@ -65,6 +93,18 @@ func CallExample() {
 	} else {
 		fmt.Printf("call failed!\n")
 	}
+}
+
+//calls the getTask() method on the coordinator
+func CallGetTask(workerID string) GetTaskReply {
+	args := GetTaskArgs{workerID: workerID}
+	reply := GetTaskReply{}
+	ok := call("Coordinator.", &args, &reply)
+	if !ok {
+		log.Fatal("CallGetTask failed! the job is probably done.")
+		os.Exit(0)
+	}
+	return reply
 }
 
 //
